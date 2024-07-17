@@ -19,7 +19,7 @@ pub async fn post_new_user_sql(pool: &mut MysqlConnection, new_user: UserCreate)
     Ok(inserted_user)
 }
 
-pub async fn login_query_sql(pool: &mut MysqlConnection, user_query: UserQuery,session: Session,) -> Result<UserDetail, EveryError> {
+pub async fn login_query_sql(pool: &mut MysqlConnection, user_query: UserQuery) -> Result<UserDetail, EveryError> {
     use crate::schema::users_table;
     use diesel::prelude::*;
     let username = user_query.username.unwrap_or_else(|| String::from(""));
@@ -32,14 +32,6 @@ pub async fn login_query_sql(pool: &mut MysqlConnection, user_query: UserQuery,s
         .filter(users_table::username.eq(&username).or(users_table::email.eq(&email)))
         .filter(users_table::password.eq(&password))
         .first(pool)?;
-    match user {
-        user =>{
-            session.set("user_uuid", user.uuid);
-            return Ok(user);
-        },
-        _ => {
-            return Err(EveryError::AuthenticationError("用户名或密码错误".to_string()));
-        }
 
-    }
+    Ok(user)
 }

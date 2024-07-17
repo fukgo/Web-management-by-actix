@@ -1,12 +1,12 @@
-use actix_web::{http, web, App, HttpServer};
 use diesel::r2d2::{self, ConnectionManager};
 use diesel::mysql::MysqlConnection;
 use std::io;
 use management::routers::user_routes;
 use actix_web::web::Data;
-use actix_web::{web, App, HttpServer, HttpResponse, Error};
-use actix_session::{Session, SessionMiddleware, storage::RedisSessionStore};
+use actix_web::{App, HttpServer, HttpResponse, Error,http, web};
 use actix_web::cookie::Key;
+use actix_session::{Session, SessionMiddleware,  storage::RedisSessionStore};
+use actix_identity::{CookieIdentityPolicy, IdentityService};
 #[actix_rt::main]
 async fn main()-> io::Result<()> {
     dotenv::dotenv().ok();
@@ -27,16 +27,16 @@ async fn main()-> io::Result<()> {
     let redis_store = RedisSessionStore::new("redis://127.0.0.1:6379")
         .await
         .unwrap();
+    let indentify_service_middleware = IdentityMiddleware::default();
+    let session_middleware = SessionMiddleware::new(redis_store.clone(), secret_key.clone());
     let app = move || {
         App::new()
             //将mult_polls（一个数据库连接池）添加到Actix-web应用中，使其可以在处理请求的函数中被访问。
             .app_data(Data::new(mult_polls.clone()))
-            .wrap(
-                SessionMiddleware::new(
-                    redis_store.clone(),
-                    secret_key.clone(),
-                )
-            )
+            //创建了一个新的 session 中间件，并将其添加到应用中
+            .wrap(session_middleware)
+            //创建了一个新的 identity 中间件，并将其添加到应用中
+            .wrap(indentify_service_middleware)
             .configure(user_routes)
     };
 
