@@ -19,8 +19,14 @@ pub struct UserDetail{
 #[derive(Debug,Serialize,Deserialize,Clone,Insertable,QueryableByName)]
 #[diesel(table_name = users_table)]
 pub struct UserCreate{
-    #[serde(deserialize_with = "generate_uuid")]
-    pub uuid: Option<String>,
+    pub username: String,
+    pub password: String,
+    pub email: String,
+}
+#[derive(Insertable)]
+#[diesel(table_name = users_table)]
+pub struct UserCreateWithUuid {
+    pub uuid: String,
     pub username: String,
     pub password: String,
     pub email: String,
@@ -32,12 +38,5 @@ pub struct UserQuery{
     pub email: Option<String>,
 }
 
-fn generate_uuid<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    let _ = String::deserialize(deserializer)?;
-    Ok(Some(Uuid::new_v4().to_string()))
-}
 
 

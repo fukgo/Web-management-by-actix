@@ -1,15 +1,23 @@
 use uuid::Uuid;
 use crate::errors::EveryError;
-use crate::models::user_model::{UserDetail,UserCreate,UserQuery};
+use crate::models::user_model::{UserDetail,UserCreate,UserQuery,UserCreateWithUuid};
 use diesel::MysqlConnection;
 use actix_session::Session;
 //post新用户，返回
 pub async fn post_new_user_sql(pool: &mut MysqlConnection, new_user: UserCreate) -> Result<UserDetail, EveryError> {
     use crate::schema::users_table;
     use diesel::prelude::*;
-    let user_uuid = new_user.uuid.as_ref().unwrap().clone();
+    let new_user_with_uuid = UserCreateWithUuid{
+        uuid: Uuid::new_v4().to_string(),
+        username: new_user.username,
+        password: new_user.password,
+        email: new_user.email,
+
+    };
+    let user_uuid = new_user_with_uuid.uuid.clone();
+
     diesel::insert_into(users_table::table)
-        .values(&new_user)
+        .values(&new_user_with_uuid)
         .execute(pool)?;
     
     let inserted_user: UserDetail = users_table::table

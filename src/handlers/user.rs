@@ -5,7 +5,7 @@ use crate::models::user_model::{UserCreate, UserDetail,UserQuery};
 use crate::errors::EveryError;
 use crate::db_operations::user_sql::{post_new_user_sql,login_query_sql};
 use diesel::r2d2::ConnectionManager;
-use actix_identity::Identity;
+use actix_web::cookie::Key;
 use diesel::r2d2::Pool;
 use diesel::mysql::MysqlConnection;
 use actix_web::dev::Extensions;
@@ -19,7 +19,7 @@ pub async fn register(
     Ok(HttpResponse::Ok().json(new_user_vec))
 }
 pub async fn login(
-    id: Identity,
+    session: Session,
     pool: web::Data<r2d2::Pool<ConnectionManager<MysqlConnection>>>,
     new_user: web::Json<UserQuery>,
     request: HttpRequest
@@ -27,8 +27,10 @@ pub async fn login(
     let user_query = new_user.into_inner();
     let mut one_poll = pool.get().expect("couldn't get db connection from pool");
     let match_user = login_query_sql(&mut one_poll, user_query).await?;
-    Identity::login(&request.extensions(), match_user.into().unwap());
-    Ok(HttpResponse::Ok().json("logged in"))
+    let value = match_user.uuid.to_string();
+    session.insert("session_uuid", value);
+    Ok(HttpResponse::Ok().json(match_user))
+
 }
 
 pub async fn delete() -> HttpResponse {
@@ -37,7 +39,7 @@ pub async fn delete() -> HttpResponse {
 pub async fn update() -> HttpResponse {
     HttpResponse::Ok().body("login")
 }
-pub async fn logout(id:Identity) -> HttpResponse {
-    id.logout();
+pub async fn logout(session:Session) -> HttpResponse {
+    session.purge();
     HttpResponse::Ok().body("loggeed out")
 }
