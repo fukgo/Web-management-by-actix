@@ -1,3 +1,4 @@
+use diesel::mysql::Mysql;
 use uuid::Uuid;
 use crate::errors::EveryError;
 use crate::models::user_model::{UserDetail,UserCreate,UserQuery,UserCreateWithUuid};
@@ -42,4 +43,11 @@ pub async fn login_query_sql(pool: &mut MysqlConnection, user_query: UserQuery) 
         .first(pool)?;
 
     Ok(user)
+}
+
+pub async fn delete_user_sql(pool:&mut MysqlConnection,user_uuid:String)->Result<String,EveryError>{
+    use crate::schema::users_table;
+    use diesel::prelude::*;
+    diesel::delete(users_table::table.filter(users_table::uuid.eq(&user_uuid))).execute(pool)?;
+    Ok("删除成功".to_string())
 }
