@@ -7,7 +7,7 @@ use dotenv::dotenv;
 use std::env;
 use std::io;
 use management::routers::user_routes;
-
+use management::middlewares::API_timing_middleware::Timing;
 #[actix_web::main]
 async fn main() -> io::Result<()> {
     dotenv().ok();
@@ -25,9 +25,10 @@ async fn main() -> io::Result<()> {
 
     let secret_key = Key::generate();
     let redis_store = RedisSessionStore::new("redis://127.0.0.1:6379").await.unwrap();
-
     HttpServer::new(move || {
         App::new()
+            //记录 HTTP 请求和响应的信息
+            .wrap(Timing)
             .wrap(Logger::default())
             .wrap(SessionMiddleware::new(redis_store.clone(), secret_key.clone()))
             .app_data(web::Data::new(pool.clone()))

@@ -5,3 +5,4 @@ pub mod models;
 pub mod db_operations;
 pub mod schema;
 pub mod token;
+pub mod middlewares;

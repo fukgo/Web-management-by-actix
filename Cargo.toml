@@ -7,6 +7,8 @@ edition = "2021"
 [dependencies]
 actix-web="4.8.0"
 actix-rt="2.7.0"
+# 提供对异步编程的支持和工具
+futures-util = "0.3.30"
 serde = {version = "1.0.203",features=["derive"]}
 dotenv="0.15.0"
 uuid = { version = "1.9.1", features = ["v4", "serde"] }

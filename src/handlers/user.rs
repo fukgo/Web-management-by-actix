@@ -23,26 +23,27 @@ pub async fn register(
     pool: web::Data<r2d2::Pool<ConnectionManager<MysqlConnection>>>,
     new_user: web::Json<UserCreate>,
 ) -> Result<HttpResponse, EveryError> {
-    if let Ok(Some(_)) = session.get::<String>("session_uuid") {
-        return Ok(HttpResponse::Ok().json("已经登录"));
-    }
     let user_create = new_user.into_inner();
     let mut one_poll = pool.get().expect("couldn't get db connection from pool");
     let new_user_vec = post_new_user_sql(&mut one_poll, user_create).await?;
-    Ok(HttpResponse::Ok().json(new_user_vec))
+    Ok(HttpResponse::Ok().json(Response{status:200,data:new_user_vec}))
 }
 pub async fn login(
     session: Session,
     pool: web::Data<r2d2::Pool<ConnectionManager<MysqlConnection>>>,
     new_user: web::Json<UserQuery>,
-    request: HttpRequest
 ) -> Result<HttpResponse, EveryError> {
+    if let Ok(Some(_)) = session.get::<String>("session_uuid") {
+        return Ok(HttpResponse::Ok().json(Response{status:200,data:"已登录"}));
+    }
     let user_query = new_user.into_inner();
     let mut one_poll = pool.get().expect("couldn't get db connection from pool");
     let match_user = login_query_sql(&mut one_poll, user_query).await?;
     let value = match_user.uuid.to_string();
-    session.insert("session_uuid", value);
-    Ok(HttpResponse::Ok().json(match_user))
+    session.insert("session_uuid", value).map_err(|e| EveryError::SessionError(e))?;
+    //调用 session.insert()，Actix-web 会在响应中添加一个 Set-Cookie 头，这个头包含了会话数据。
+    //当浏览器收到这个响应时，它会将这个 cookie 存储起来，并在后续的请求中将它发送回服务器。
+    Ok(HttpResponse::Ok().json(Response{status:200,data:match_user}))
 
 }
 

@@ -12,6 +12,7 @@ pub enum EveryError{
     InternalError(String),
     ActixError(actix_web::Error),
     DieselError(diesel::result::Error),
+    SessionError(actix_session::SessionInsertError),
 }
 
 impl EveryError{
@@ -49,6 +50,10 @@ impl EveryError{
                 println!("Diesel Error: {}", error);
                 "Diesel Error".to_string()
             }
+            EveryError::SessionError(error) => {
+                println!("Session Error: {}", error);
+                "Session Error".to_string()
+            }
         }
     }
 }
@@ -64,6 +69,7 @@ impl error::ResponseError for EveryError{
             EveryError::InternalError(_) => StatusCode::INTERNAL_SERVER_ERROR,
             EveryError::ActixError(_) => StatusCode::INTERNAL_SERVER_ERROR,
             EveryError::DieselError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            EveryError::SessionError(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
     fn error_response(&self) -> HttpResponse {
@@ -84,6 +90,7 @@ impl fmt::Display for EveryError{
             EveryError::InternalError(message) => write!(f, "Internal Error: {}", message),
             EveryError::ActixError(error) => write!(f, "Actix Error: {}", error),
             EveryError::DieselError(error) => write!(f, "Diesel Error: {}", error),
+            EveryError::SessionError(error) => write!(f, "Session Error: {}", error),
         }
     }
 }
