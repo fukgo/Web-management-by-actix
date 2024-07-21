@@ -8,12 +8,21 @@ use actix_session::Session;
 pub async fn post_new_user_sql(pool: &mut MysqlConnection, new_user: UserCreate) -> Result<UserDetail, EveryError> {
     use crate::schema::users_table;
     use diesel::prelude::*;
+    let query_username = new_user.username.clone();
+    let query_email = new_user.email.clone();
+    //查询用户名和邮箱是否已经存在
+    let user: UserDetail = users_table::table
+        .filter(users_table::username.eq(&query_username).or(users_table::email.eq(&query_email)))
+        .first(pool)?;
+    //如果用户名和邮箱已经存在，则返回错误
+    if user.username == new_user.username || user.email == new_user.email {
+        return Err(EveryError::AuthenticationError("用户名或邮箱已经存在".to_string()));
+    }
     let new_user_with_uuid = UserCreateWithUuid{
         uuid: Uuid::new_v4().to_string(),
         username: new_user.username,
         password: new_user.password,
         email: new_user.email,
-
     };
     let user_uuid = new_user_with_uuid.uuid.clone();
 
@@ -33,16 +42,32 @@ pub async fn login_query_sql(pool: &mut MysqlConnection, user_query: UserQuery) 
     use diesel::prelude::*;
     let username = user_query.username.unwrap_or_else(|| String::from(""));
     let email = user_query.email.unwrap_or_else(|| String::from(""));
-    let password = user_query.password.unwrap();
-    
-    //通过用户名和密码查询用户，如果用户名和密码匹配或者邮箱和密码匹配，则返回登录成功，否则返回登录失败
-    let user: UserDetail = users_table::table
-    //必须满足 users_table::username 等于 &username 或者 users_table::email 等于 &email
-        .filter(users_table::username.eq(&username).or(users_table::email.eq(&email)))
-        .filter(users_table::password.eq(&password))
-        .first(pool)?;
+    match (username.len(), email.len()) {
+        (0, 0) => {
+            return Err(EveryError::ValidationError("用户名和邮箱不能同时为空".to_string()));
+        }
+        _ => {}
+    }
+    match user_query.password {
+        Some(password) => {
+            if password.len() == 0 {
+                return Err(EveryError::ValidationError("密码不能为空".to_string()));
+            }else {
+                //通过用户名和密码查询用户，如果用户名和密码匹配或者邮箱和密码匹配，则返回登录成功，否则返回登录失败
+                let user: UserDetail = users_table::table
+                //必须满足 users_table::username 等于 &username 或者 users_table::email 等于 &email
+                .filter(users_table::username.eq(&username).or(users_table::email.eq(&email)))
+                .filter(users_table::password.eq(&password))
+                .first(pool)?;
+            Ok(user)
+            }
+        }
+        None => {
+            return Err(EveryError::ValidationError("密码不能为空".to_string()));
+        }
+    }
 
-    Ok(user)
+    
 }
 
 pub async fn delete_user_sql(pool:&mut MysqlConnection,user_uuid:String)->Result<String,EveryError>{
