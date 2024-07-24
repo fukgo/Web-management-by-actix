@@ -5,7 +5,7 @@ use actix_web::cookie::Cookie;
 use reqwest::Request;
 use crate::models::user_model::{UserCreate, UserDetail,UserQuery};
 use crate::errors::EveryError;
-use crate::db_operations::user_sql::{post_new_user_sql,login_query_sql,delete_user_sql};
+use crate::db_operations::user_sql::{post_new_user_sql,login_query_sql,delete_user_sql,valide_email};
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
 use diesel::mysql::MysqlConnection;
@@ -14,6 +14,7 @@ use serde::Serialize;
 use lazy_static::lazy_static;
 use std::collections::HashSet;
 use std::sync::Mutex;
+use regex::Regex;
 #[derive(Serialize)]
 struct Response<T>{
     status:u16,
@@ -47,10 +48,7 @@ impl UserSession{
 lazy_static! {
     static ref ONLINE_USERS: Mutex<UserSession> = Mutex::new(UserSession::new());
 }
-pub async fn register(
-    pool: web::Data<r2d2::Pool<ConnectionManager<MysqlConnection>>>,
-    new_user: web::Json<UserCreate>,
-) -> Result<HttpResponse, EveryError> {
+pub async fn register(pool: web::Data<r2d2::Pool<ConnectionManager<MysqlConnection>>>,new_user: web::Json<UserCreate>,) -> Result<HttpResponse, EveryError> {
     let user_create = new_user.into_inner();
     let mut one_poll = pool.get().expect("couldn't get db connection from pool");
     let new_user_vec = post_new_user_sql(&mut one_poll, user_create).await?;
@@ -72,6 +70,7 @@ pub async fn login(
             online_users.insert(user_uuid.clone());
         }
     }
+    
     
     //创建一个新的会话，将用户的 UUID 作为会话数据插入到会话中。
     // 创建一个新的会话，将用户的 UUID 作为会话数据插入到会话中
@@ -96,8 +95,26 @@ pub async fn delete(pool: web::Data<r2d2::Pool<ConnectionManager<MysqlConnection
         Err(_) => HttpResponse::Ok().json(Response{status:500,data:"删除失败"})
     }
 }
-pub async fn update() -> HttpResponse {
-    HttpResponse::Ok().body("login")
+pub async fn refind_password(pool: web::Data<r2d2::Pool<ConnectionManager<MysqlConnection>>>, input_email: web::Json<String>) -> HttpResponse {
+    let email = input_email.into_inner();
+    let email_regex = Regex::new(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$").unwrap();
+    if email_regex.is_match(&email) {
+        match valide_email(&mut pool.get().expect("couldn't get db connection from pool"), email).await {
+            Ok(res) => {
+                if res {
+                    
+                    return HttpResponse::Ok().json(Response{status:200,data:"邮箱验证成功"})
+                } else {
+                    return HttpResponse::Ok().json(Response{status:400,data:"邮箱不存在"})
+                }
+            }
+            Err(_) => {
+                return HttpResponse::Ok().json(Response{status:500,data:"邮箱验证失败"})
+            }
+        }
+    } else {
+        return HttpResponse::Ok().json(Response{status:400,data:"邮箱格式错误"})
+    }
 }
 pub async fn logout(req:HttpRequest) -> HttpResponse {
     match req.cookie("uuid") {
@@ -126,4 +143,7 @@ pub async fn get_online_users() -> HttpResponse {
     //或者
     let user_sessions: Vec<_> = online_users.uuid_hash_set.iter().cloned().collect();
     HttpResponse::Ok().json(Response{status:200,data:user_sessions})
+}
+pub async fn update_user(pool: web::Data<r2d2::Pool<ConnectionManager<MysqlConnection>>>,new_user: web::Json<UserCreate>) {
+    
 }
