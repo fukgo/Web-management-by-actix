@@ -1,15 +1,11 @@
-use actix_session::Session;
 use actix_web::{web, HttpResponse,HttpRequest};
-use diesel::IntoSql;
 use actix_web::cookie::Cookie;
 use reqwest::Request;
 use crate::models::user_model::{UserCreate, UserDetail,UserQuery};
 use crate::errors::EveryError;
 use crate::db_operations::user_sql::{post_new_user_sql,login_query_sql,delete_user_sql,valide_email};
 use diesel::r2d2::ConnectionManager;
-use diesel::r2d2::Pool;
 use diesel::mysql::MysqlConnection;
-use actix_web::dev::Extensions;
 use serde::Serialize;
 use lazy_static::lazy_static;
 use std::collections::HashSet;

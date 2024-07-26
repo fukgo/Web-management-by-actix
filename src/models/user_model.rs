@@ -1,5 +1,5 @@
 
-use chrono::{naive::serde::ts_milliseconds::deserialize, NaiveDateTime};
+use chrono::NaiveDateTime;
 /*
 Queryable: 这个 trait 用于从数据库查询返回的行中加载数据。当你执行 load、get_result、first 等方法时，Diesel 会尝试将返回的每一行数据转换为实现了 Queryable trait 的类型。
 
