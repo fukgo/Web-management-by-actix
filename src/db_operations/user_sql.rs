@@ -1,15 +1,11 @@
 
-use diesel::mysql::Mysql;
-use diesel::sql_types::Bool;
 use uuid::Uuid;
 use crate::errors::EveryError;
-use crate::models::user_model::{UserDetail,UserCreate,UserQuery,UserCreateWithUuid,UserRolesCorrelationCreate};
+use crate::models::user_model::{UserDetail,UserCreate,UserLogin,UserCreateAll,UserRolesCorrelationCreate};
 use crate::models::profile_model::{ProfileCreate,ProfileDetail};
 use crate::schema::user_roles_table_correlation;
 use crate::schema::users_table;
 use diesel::MysqlConnection;
-use actix_session::Session;
-
 
 pub async fn post_new_user_sql(pool: &mut MysqlConnection, new_user: UserCreate) -> Result<UserDetail, EveryError> {
     use crate::schema::users_table;
@@ -24,8 +20,9 @@ pub async fn post_new_user_sql(pool: &mut MysqlConnection, new_user: UserCreate)
             return Err(EveryError::AuthenticationError("用户名或邮箱已经存在".to_string()));
         },
         None => {
-            let new_user_with_uuid = UserCreateWithUuid{
+            let new_user_with_uuid = UserCreateAll{
                 uuid: Uuid::new_v4().to_string(),
+                user_status_id: 1,
                 username: new_user.username,
                 password: new_user.password,
                 email: new_user.email,
@@ -45,18 +42,18 @@ pub async fn post_new_user_sql(pool: &mut MysqlConnection, new_user: UserCreate)
     }
 }
 
-pub async fn login_query_sql(pool: &mut MysqlConnection, user_query: UserQuery) -> Result<UserDetail, EveryError> {
+pub async fn login_query_sql(pool: &mut MysqlConnection, user_login: UserLogin) -> Result<UserDetail, EveryError> {
     use crate::schema::{users_table,user_profile_table};
     use diesel::prelude::*;
-    if user_query.all_fields_present()==false{
+    if user_login.all_fields_present()==false{
         return Err(EveryError::ValidationError("输入字段错误".to_string()));
     }
-    if user_query.is_valid_email()==false{
+    if user_login.is_valid_email()==false{
         return Err(EveryError::ValidationError("邮箱格式错误".to_string()));
     }
-    let username = user_query.username.clone().unwrap();
-    let email = user_query.email.clone().unwrap();
-    let password = user_query.password.clone().unwrap();
+    let username = user_login.username.clone().unwrap();
+    let email = user_login.email.clone().unwrap();
+    let password = user_login.password.clone().unwrap();
     let user:Option<UserDetail> = users_table::table
         .filter(users_table::username.eq(&username).or(users_table::email.eq(&email)))
         .filter(users_table::password.eq(&password))
@@ -75,7 +72,7 @@ pub async fn login_query_sql(pool: &mut MysqlConnection, user_query: UserQuery) 
 
             let user_roles_correlation = UserRolesCorrelationCreate {
                 user_uuid: user.uuid.clone(),
-                role_id: 2,
+                role_id: 3,
             };
             //创建用户的同时，为一个用户添加一个角色
             diesel::insert_into(user_roles_table_correlation::table)

@@ -1,7 +1,7 @@
 use actix_web::{web, HttpResponse,HttpRequest};
 use actix_web::cookie::Cookie;
 use reqwest::Request;
-use crate::models::user_model::{UserCreate, UserDetail,UserQuery};
+use crate::models::user_model::{UserCreate, UserDetail,UserLogin};
 use crate::errors::EveryError;
 use crate::db_operations::user_sql::{post_new_user_sql,login_query_sql,delete_user_sql,valide_email};
 use diesel::r2d2::ConnectionManager;
@@ -11,6 +11,7 @@ use lazy_static::lazy_static;
 use std::collections::HashSet;
 use std::sync::Mutex;
 use regex::Regex;
+use std::collections::HashMap;
 #[derive(Serialize)]
 struct Response<T>{
     status:u16,
@@ -44,6 +45,11 @@ impl UserSession{
 lazy_static! {
     static ref ONLINE_USERS: Mutex<UserSession> = Mutex::new(UserSession::new());
 }
+//存储验证码所用的 HashMap
+lazy_static! {
+    static ref VERIFICATION_CODES: Mutex<HashMap<String, String>> = Mutex::new(HashMap::new());
+}
+
 pub async fn register(pool: web::Data<r2d2::Pool<ConnectionManager<MysqlConnection>>>,new_user: web::Json<UserCreate>,) -> Result<HttpResponse, EveryError> {
     let user_create = new_user.into_inner();
     let mut one_poll = pool.get().expect("couldn't get db connection from pool");
@@ -52,7 +58,7 @@ pub async fn register(pool: web::Data<r2d2::Pool<ConnectionManager<MysqlConnecti
 }
 pub async fn login(
     pool: web::Data<r2d2::Pool<ConnectionManager<MysqlConnection>>>,
-    query_user: web::Json<UserQuery>,
+    query_user: web::Json<UserLogin>,
 ) -> Result<HttpResponse, EveryError> {
     let login_user = query_user.into_inner();
     //判断要登陆的uuid是否在在线用户集合中
@@ -68,13 +74,13 @@ pub async fn login(
     }
     
     
-    //创建一个新的会话，将用户的 UUID 作为会话数据插入到会话中。
     // 创建一个新的会话，将用户的 UUID 作为会话数据插入到会话中
     let cookie = Cookie::build("uuid", user_uuid.clone())
         .path("/")
         .secure(false)
         .http_only(true)
         .finish();
+    
 
     Ok(HttpResponse::Ok()
         .cookie(cookie)

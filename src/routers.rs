@@ -6,6 +6,18 @@ use actix_web::{web, HttpResponse, HttpRequest,Scope};
 use crate::{errors::EveryError, handlers::user::{delete, get_online_users, login, logout, register}, schema::product_types_table::type_name};
 use crate::handlers::products::*;
 use actix_web::web::Data;
+use crate::handlers::file_service::{save_file,up_file};
+pub fn file_routes(cfg: &mut web::ServiceConfig) {
+    cfg
+    .service(
+        web::resource("/upload").route(web::post().to(up_file)),
+    )
+    .service(
+        web::resource("/download").route(web::post().to(save_file)),
+    );
+}
+
+
 pub fn user_routes(cfg: &mut web::ServiceConfig){
     cfg.service(
 web::scope("/user")

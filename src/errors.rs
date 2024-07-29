@@ -1,6 +1,6 @@
 use std::fmt;
 use actix_web::{HttpResponse, error, http::StatusCode};
-use serde::Serialize;
+
 use serde_json::json;
 #[derive(Debug)]
 pub enum EveryError{
@@ -14,6 +14,7 @@ pub enum EveryError{
     DieselError(diesel::result::Error),
     SessionError(actix_session::SessionInsertError),
     EmailError(String),
+    SerdeError(String)
 }
 
 impl EveryError{
@@ -59,6 +60,10 @@ impl EveryError{
                 println!("Email Error: {}", error);
                 "Email Error".to_string()
             }
+            EveryError::SerdeError(error)=>{
+                println!("SerdeError Error: {}", error);
+                "SerdeError Error".to_string()
+            }
         }
     }
 }
@@ -76,6 +81,7 @@ impl error::ResponseError for EveryError{
             EveryError::DieselError(_) => StatusCode::INTERNAL_SERVER_ERROR,
             EveryError::SessionError(_) => StatusCode::INTERNAL_SERVER_ERROR,
             EveryError::EmailError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            EveryError::SerdeError(_)=>StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
     fn error_response(&self) -> HttpResponse {
@@ -98,6 +104,7 @@ impl fmt::Display for EveryError{
             EveryError::DieselError(error) => write!(f, "Diesel Error: {}", error),
             EveryError::SessionError(error) => write!(f, "Session Error: {}", error),
             EveryError::EmailError(error) => write!(f, "Email Error: {}", error),
+            EveryError::SerdeError(error)=>write!(f, "SerdeError Error: {}", error),
         }
     }
 }
@@ -110,5 +117,17 @@ impl From<actix_web::Error> for EveryError{
 impl From<diesel::result::Error> for EveryError{
     fn from(error: diesel::result::Error) -> Self{
         EveryError::DieselError(error)
+    }
+}
+impl From<sqlx::Error> for EveryError {
+    fn from(error: sqlx::Error) -> Self {
+        // 这里你可以根据需要转换或包装错误
+        EveryError::DatabaseError(error.to_string())
+    }
+}
+
+impl From<serde::de::value::Error> for EveryError {
+    fn from(error: serde::de::value::Error) -> Self {
+        EveryError::SerdeError(error.to_string())
     }
 }

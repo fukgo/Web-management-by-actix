@@ -1,15 +1,41 @@
 use actix_session::{storage::RedisSessionStore, SessionMiddleware};
-use actix_web::{web, App, HttpServer, middleware::Logger};
+use actix_web::{web, App, HttpServer, middleware::Logger, Error, HttpRequest,HttpResponse};
 use actix_web::cookie::Key;
 use diesel::r2d2::{self, ConnectionManager};
 use diesel::mysql::MysqlConnection;
 use dotenv::dotenv;
 use std::env;
 use std::io;
-use management::routers::{user_routes,product_routes};
+use management::routers::{user_routes,product_routes,file_routes};
 use management::middlewares::API_timing_middleware::Timing;
 use redis::Connection;
 use r2d2_redis::RedisConnectionManager;
+use actix_web_actors::ws;
+use actix::Actor;
+use actix::StreamHandler;
+/// 定义 WebSocket Actor
+struct MyWebSocket;
+
+impl Actor for MyWebSocket {
+    type Context = ws::WebsocketContext<Self>;
+}
+/// 实现 StreamHandler trait 来处理 WebSocket 消息
+impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for MyWebSocket {
+    fn handle(&mut self, msg: Result<ws::Message, ws::ProtocolError>, ctx: &mut Self::Context) {
+        match msg {
+            Ok(ws::Message::Ping(msg)) => ctx.pong(&msg),
+            Ok(ws::Message::Text(text)) => ctx.text(text),
+            Ok(ws::Message::Binary(bin)) => ctx.binary(bin),
+            _ => (),
+        }
+    }
+}
+/// 定义 WebSocket 路由
+async fn chat_route(req: HttpRequest, stream: web::Payload) -> Result<HttpResponse, Error> {
+    let resp = ws::start(MyWebSocket {}, &req, stream);
+    println!("{:?}", resp);
+    resp
+}
 #[actix_web::main]
 async fn main() -> io::Result<()> {
     dotenv().ok();
@@ -39,10 +65,13 @@ async fn main() -> io::Result<()> {
             .app_data(web::Data::new(mysql_pool.clone()))
             .app_data(web::Data::new(redis_pool.clone()))
             .configure(user_routes)
+            .configure(file_routes)
             .configure(|cfg| {
                 let pool = web::Data::new(mysql_pool.clone());
                 product_routes(cfg, pool);
             })
+            .route("/ws/", web::get().to(chat_route)) // 添加 WebSocket 路由
+
     })
     .bind(format!("{}:{}", bind_address, bind_port))?
     .run()

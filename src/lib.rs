@@ -7,3 +7,4 @@ pub mod schema;
 pub mod token;
 pub mod middlewares;
 pub mod send_email;
+pub mod utils;
