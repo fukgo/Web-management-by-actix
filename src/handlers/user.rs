@@ -1,4 +1,4 @@
-use actix_web::{web, HttpResponse,HttpRequest};
+use actix_web::{web, HttpResponse,HttpRequest,Responder};
 use actix_web::cookie::Cookie;
 use reqwest::Request;
 use crate::models::user_model::{UserCreate, UserDetail,UserLogin};
@@ -12,6 +12,7 @@ use std::collections::HashSet;
 use std::sync::Mutex;
 use regex::Regex;
 use std::collections::HashMap;
+use crate::utils::generate_code;
 #[derive(Serialize)]
 struct Response<T>{
     status:u16,
@@ -45,10 +46,10 @@ impl UserSession{
 lazy_static! {
     static ref ONLINE_USERS: Mutex<UserSession> = Mutex::new(UserSession::new());
 }
-//存储验证码所用的 HashMap
-lazy_static! {
-    static ref VERIFICATION_CODES: Mutex<HashMap<String, String>> = Mutex::new(HashMap::new());
-}
+// //存储验证码所用的 HashMap
+// lazy_static! {
+//     static ref VERIFICATION_CODES: Mutex<HashMap<String, String>> = Mutex::new(HashMap::new());
+// }
 
 pub async fn register(pool: web::Data<r2d2::Pool<ConnectionManager<MysqlConnection>>>,new_user: web::Json<UserCreate>,) -> Result<HttpResponse, EveryError> {
     let user_create = new_user.into_inner();
@@ -81,6 +82,7 @@ pub async fn login(
         .http_only(true)
         .finish();
     
+    
 
     Ok(HttpResponse::Ok()
         .cookie(cookie)
@@ -104,7 +106,6 @@ pub async fn refind_password(pool: web::Data<r2d2::Pool<ConnectionManager<MysqlC
         match valide_email(&mut pool.get().expect("couldn't get db connection from pool"), email).await {
             Ok(res) => {
                 if res {
-                    
                     return HttpResponse::Ok().json(Response{status:200,data:"邮箱验证成功"})
                 } else {
                     return HttpResponse::Ok().json(Response{status:400,data:"邮箱不存在"})

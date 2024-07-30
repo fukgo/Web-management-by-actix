@@ -49,6 +49,7 @@ pub struct UserLogin{
     pub username: Option<String>,
     pub password: Option<String>,
     pub email: Option<String>,
+    pub code: Option<String>
 }
 use regex::Regex;
 impl UserLogin{

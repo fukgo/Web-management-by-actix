@@ -10,7 +10,9 @@ pub struct ProductCreate{
     pub product_name :String,
     pub product_price: BigDecimal,
     pub product_stock: i32,
+    #[serde(default)]
     pub product_description: Option<String>,
+    #[serde(default)]
     pub product_icon: Option<String>,
     pub product_status_id: i32,
 }
@@ -22,7 +24,9 @@ pub struct ProductDetail {
     pub product_name: String,
     pub product_price: bigdecimal::BigDecimal,
     pub product_stock: i32,
+    #[serde(default)]//如果在 JSON 中这两个字段不存在或者为空，serde 会将它们设置为 None。
     pub product_description: Option<String>,
+    #[serde(default)]//如果在 JSON 中这两个字段不存在或者为空，serde 会将它们设置为 None。
     pub product_icon: Option<String>,
     pub product_status_id: i32,
     pub created_at: chrono::NaiveDateTime,
@@ -34,10 +38,17 @@ pub struct ProductDetail {
 pub struct ProductTypesDetail{
     pub id: i32,
     pub type_name: String,
+    #[serde(default)]
     pub type_icon: Option<String>,
     pub description: String,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
+}
+#[derive(Debug,Serialize,Clone,Insertable)]
+#[diesel(table_name = product_types_table)]
+pub struct ProductTypesCreate{
+    pub type_name: String,
+    pub description: String,
 }
 
 #[derive(Queryable,Serialize,Clone,Selectable)]

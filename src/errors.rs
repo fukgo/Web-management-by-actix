@@ -1,7 +1,8 @@
 use std::fmt;
 use actix_web::{HttpResponse, error, http::StatusCode};
-
+use actix_web::error::BlockingError;
 use serde_json::json;
+use actix_multipart::MultipartError;
 #[derive(Debug)]
 pub enum EveryError{
     NotFound(String),
@@ -14,10 +15,13 @@ pub enum EveryError{
     DieselError(diesel::result::Error),
     SessionError(actix_session::SessionInsertError),
     EmailError(String),
-    SerdeError(String)
+    SerdeError(String),
+    BlockingError(String),
+    ImageError(String)
 }
 
 impl EveryError{
+
     fn error_response(&self)->String{
         match self{
             EveryError::NotFound(message) => {
@@ -64,6 +68,14 @@ impl EveryError{
                 println!("SerdeError Error: {}", error);
                 "SerdeError Error".to_string()
             }
+            EveryError::BlockingError(error)=>{
+                println!("BlockingError Error: {}", error);
+                "BlockingError Error".to_string()
+            }
+            EveryError::ImageError(error)=>{
+                println!("ImageError Error: {}", error);
+                "ImageError Error".to_string()
+            }
         }
     }
 }
@@ -72,16 +84,11 @@ impl error::ResponseError for EveryError{
     fn status_code(&self) -> StatusCode {
         match self {
             EveryError::NotFound(_) => StatusCode::NOT_FOUND,
-            EveryError::DatabaseError(_) => StatusCode::INTERNAL_SERVER_ERROR,
             EveryError::ValidationError(_) => StatusCode::BAD_REQUEST,
             EveryError::AuthenticationError(_) => StatusCode::UNAUTHORIZED,
             EveryError::ParseError(_) => StatusCode::BAD_REQUEST,
-            EveryError::InternalError(_) => StatusCode::INTERNAL_SERVER_ERROR,
-            EveryError::ActixError(_) => StatusCode::INTERNAL_SERVER_ERROR,
-            EveryError::DieselError(_) => StatusCode::INTERNAL_SERVER_ERROR,
-            EveryError::SessionError(_) => StatusCode::INTERNAL_SERVER_ERROR,
-            EveryError::EmailError(_) => StatusCode::INTERNAL_SERVER_ERROR,
-            EveryError::SerdeError(_)=>StatusCode::INTERNAL_SERVER_ERROR,
+            _ => StatusCode::INTERNAL_SERVER_ERROR,
+
         }
     }
     fn error_response(&self) -> HttpResponse {
@@ -105,6 +112,8 @@ impl fmt::Display for EveryError{
             EveryError::SessionError(error) => write!(f, "Session Error: {}", error),
             EveryError::EmailError(error) => write!(f, "Email Error: {}", error),
             EveryError::SerdeError(error)=>write!(f, "SerdeError Error: {}", error),
+            EveryError::BlockingError(error)=>write!(f, "BlockingError Error: {}", error),
+            EveryError::ImageError(error)=>write!(f, "ImageError Error: {}", error),
         }
     }
 }
@@ -129,5 +138,25 @@ impl From<sqlx::Error> for EveryError {
 impl From<serde::de::value::Error> for EveryError {
     fn from(error: serde::de::value::Error) -> Self {
         EveryError::SerdeError(error.to_string())
+    }
+}
+impl From<BlockingError> for EveryError {
+    fn from(error: BlockingError) -> Self {
+        EveryError::BlockingError(error.to_string())
+    }
+}
+impl From<MultipartError> for EveryError {
+    fn from(error: MultipartError) -> Self {
+        EveryError::ValidationError(error.to_string())
+    }
+}
+impl From<std::io::Error> for EveryError {
+    fn from(error: std::io::Error) -> Self {
+        EveryError::ValidationError(error.to_string())
+    }
+}   
+impl From<image::error::ImageError> for EveryError {
+    fn from(err: image::error::ImageError) -> Self {
+        EveryError::ImageError(err.to_string())
     }
 }
