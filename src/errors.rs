@@ -99,6 +99,7 @@ impl error::ResponseError for EveryError{
 }
 
 impl fmt::Display for EveryError{
+    //fmt::Formatter 是一个类型，它提供了格式化值的功能。在 Display trait 的 fmt 方法中，你会得到一个 &mut fmt::Formatter 参数，你可以使用它来写入你想要显示的字符串。
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result{
         match self{
             EveryError::NotFound(message) => write!(f, "Not Found: {}", message),
