@@ -45,15 +45,10 @@ pub async fn post_new_user_sql(pool: &mut MysqlConnection, new_user: UserCreate)
 pub async fn login_query_sql(pool: &mut MysqlConnection, user_login: UserLogin) -> Result<UserDetail, EveryError> {
     use crate::schema::{users_table,user_profile_table};
     use diesel::prelude::*;
-    if user_login.all_fields_present()==false{
-        return Err(EveryError::ValidationError("输入字段错误".to_string()));
-    }
-    if user_login.is_valid_email()==false{
-        return Err(EveryError::ValidationError("邮箱格式错误".to_string()));
-    }
-    let username = user_login.username.clone().unwrap();
-    let email = user_login.email.clone().unwrap();
-    let password = user_login.password.clone().unwrap();
+
+    let username = user_login.username.clone().unwrap_or("".to_string());
+    let email = user_login.email.clone().unwrap_or("".to_string());
+    let password = user_login.password.clone().unwrap_or("".to_string());
     let user:Option<UserDetail> = users_table::table
         .filter(users_table::username.eq(&username).or(users_table::email.eq(&email)))
         .filter(users_table::password.eq(&password))
@@ -105,5 +100,24 @@ pub async fn valide_email(pool:&mut MysqlConnection,email:String)->Result<bool,E
         None => {
             Ok(false)
         },
+    }
+}
+pub async fn get_user_profile_sql(
+    pool: &mut MysqlConnection,
+    uuid: String,
+) -> Result<ProfileDetail, EveryError> {
+    use crate::schema::user_profile_table::*;
+    use diesel::associations::HasTable;
+    use crate::schema::user_profile_table::dsl::user_profile_table;
+    use diesel::prelude::*;
+    // Fetch the user profile from the database
+    let result = user_profile_table::table()
+        .filter(user_uuid.eq(&uuid))
+        .get_result(pool)
+        .optional()?;
+
+    match result {
+        Some(profile_detail) => Ok(profile_detail),
+        None => Err(EveryError::NotFound("Not find".to_string())), // You need to define this error type
     }
 }

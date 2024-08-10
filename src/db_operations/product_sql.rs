@@ -60,17 +60,31 @@ pub async fn get_all_product_types_sql(
 }
 
 //通过page获取
+
 pub async fn get_all_product_by_list_sql(
     pool: &mut MysqlConnection,
     page: u32,
     page_size: u32,
-) -> Result<Vec<ProductDetail>, EveryError> {
+    type_id:u32
+) -> Result<(u32, Vec<ProductDetail>), EveryError> {
     use diesel::prelude::*;
+    use diesel::dsl::count;
     //计算偏移量
     let offset = (page - 1) * page_size;
+
+    // 获取总的产品数量
+    let total_count: i64 = product_table::table
+        .select(count(product_table::id))
+        .first(pool)?;
+
+    // 计算总页数
+    let total_pages = (total_count as u32 + page_size - 1) / page_size;
+    //返回product_type_id的产品
     let all_products: Vec<ProductDetail> = product_table::table
+        .filter(product_table::product_type_id.eq(type_id as i32))
         .limit(page_size.into())
         .offset(offset.into())
         .load(pool)?;
-    Ok(all_products)
+
+    Ok((total_pages, all_products))
 }

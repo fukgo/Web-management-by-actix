@@ -1,6 +1,6 @@
 use crate::db_operations::product_sql::*;
 use crate::errors::EveryError;
-use crate::models::product_model::{ProductCreate, ProductTypesCreate};
+use crate::models::product_model::{ProductCreate, ProductDetail, ProductTypesCreate};
 use crate::models::user_model::{UserCreate, UserDetail, UserLogin};
 use actix_web::cookie::Cookie;
 use actix_web::{web, HttpRequest, HttpResponse};
@@ -9,8 +9,7 @@ use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
 use futures_util::{FutureExt, TryFutureExt};
 use reqwest::Request;
-use serde::Serialize;
-
+use serde::{Deserialize, Serialize};
 #[derive(Serialize)]
 struct Response<T> {
     status: u16,
@@ -54,7 +53,7 @@ pub async fn get_product_detail(
 }
 pub async fn delete_product(
     pool: web::Data<r2d2::Pool<ConnectionManager<MysqlConnection>>>,
-    product_id: web::Json<i32>,
+    product_id: web::Path<i32>,
 ) -> Result<HttpResponse, EveryError> {
     let product_id = product_id.into_inner();
     let mut one_poll = pool.get().expect("couldn't get db connection from pool");
@@ -77,12 +76,20 @@ pub async fn get_all_product_types(
         data: all_types,
     }))
 }
+
+
 #[derive(Deserialize)]
-struct PageListQueryParams {
+pub struct PageListQueryParams {
     //页码
     page: Option<u32>,
     //每页显示数量
     page_size: Option<u32>,
+    type_id: Option<u32>,
+}
+#[derive(Debug,Serialize,Clone)]
+pub struct ProductDisplay{
+    total_pages:u32,
+    product_list:Vec<ProductDetail>
 }
 
 //产品列表，每页显示20个产品
@@ -92,13 +99,18 @@ pub async fn get_all_product_by_list(
 ) -> Result<HttpResponse, EveryError> {
     let page = query.page.unwrap_or(1);
     let page_size = query.page_size.unwrap_or(20);
+    let type_id = query.type_id.unwrap_or(1);
     let mut one_poll = pool.get().expect("couldn't get db connection from pool");
-    let product_list = get_all_product_by_list_sql(&mut one_poll, page, page_size).await;
+    let product_list = get_all_product_by_list_sql(&mut one_poll, page, page_size,type_id).await;
     match product_list {
         Ok(product_list) => {
+            let p = ProductDisplay{
+                total_pages: product_list.0,
+                product_list: product_list.1,
+            };
             let response = Response {
                 status: 200,
-                data: product_list,
+                data: p,
             };
             Ok(HttpResponse::Ok().json(response))
         }
@@ -110,4 +122,11 @@ pub async fn get_all_product_by_list(
             Ok(HttpResponse::Ok().json(response))
         }
     }
+}
+
+pub async fn ggggg(
+    path: web::Path::<(String,)>,
+) -> HttpResponse {
+    print!("{:?}",path);
+    HttpResponse::Ok().body(format!("{:?}",path))
 }

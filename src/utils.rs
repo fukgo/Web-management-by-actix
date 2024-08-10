@@ -2,9 +2,16 @@ use crate::errors::EveryError;
 use serde::Deserialize;
 use sqlx::MySql;
 use serde;
-
+use actix_web::web;
 use serde::de::{self, Deserializer};
 use regex::Regex;
+use captcha::Captcha;
+use captcha::filters::{Noise, Wave, Dots};
+use std::path::Path;
+use chrono_tz::Asia::Shanghai;
+use chrono::Utc;
+use lazy_static::lazy_static;
+use std::sync::Mutex;
 
 pub fn deserialize_email<'de, D>(deserializer: D) -> Result<String, D::Error>
 where
@@ -39,29 +46,20 @@ where
 
     Ok(row.0 > 0)
 }
-use captcha::Captcha;
-use captcha::filters::{Noise, Wave, Dots};
-use std::path::Path;
-use chrono_tz::Asia::Shanghai;
-use chrono::Utc;
-pub async fn generate_code() -> (String,String) {
+
+pub async fn generate_code() -> (String,Vec<u8>) {
     let date_time = Utc::now().with_timezone(&Shanghai);
-    let day = date_time.format("%Y-%m-%d").to_string();
-    let time = date_time.format("%H:%M:%S").to_string();
     let mut captcha = Captcha::new();
     captcha.add_chars(6); // 增加字符数量
     let captcha_chars = captcha.chars_as_string();
 
-    let path = format!("static/code_img/{}/{}.png", day, time);
     captcha
-    .apply_filter(Noise::new(0.4))
-    .apply_filter(Wave::new(2.0, 20.0).horizontal())
-    .apply_filter(Wave::new(2.0, 20.0).vertical())
-    .view(220, 120)
-    .apply_filter(Dots::new(15))
-    .save(Path::new(&path))
-    .expect("error save img")
-    ;
+        .apply_filter(Noise::new(0.4))
+        .apply_filter(Wave::new(2.0, 20.0).horizontal())
+        .apply_filter(Wave::new(2.0, 20.0).vertical())
+        .view(220, 120)
+        .apply_filter(Dots::new(15));
 
-    (captcha_chars,path)
+    let image_bytes = captcha.as_png().expect("Failed to generate PNG");
+    (captcha_chars,image_bytes)
 }

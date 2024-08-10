@@ -1,18 +1,22 @@
 use actix_web::{web, HttpResponse,HttpRequest,Responder};
 use actix_web::cookie::Cookie;
+use rand::Rng;
 use reqwest::Request;
 use crate::models::user_model::{UserCreate, UserDetail,UserLogin};
 use crate::errors::EveryError;
-use crate::db_operations::user_sql::{post_new_user_sql,login_query_sql,delete_user_sql,valide_email};
+use crate::db_operations::user_sql::{post_new_user_sql,login_query_sql,delete_user_sql,valide_email,get_user_profile_sql};
 use diesel::r2d2::ConnectionManager;
 use diesel::mysql::MysqlConnection;
 use serde::Serialize;
 use lazy_static::lazy_static;
 use std::collections::HashSet;
 use std::sync::Mutex;
+use std::vec;
 use regex::Regex;
 use std::collections::HashMap;
 use crate::utils::generate_code;
+use actix_web::http::header;
+use rand::distributions;
 #[derive(Serialize)]
 struct Response<T>{
     status:u16,
@@ -46,10 +50,15 @@ impl UserSession{
 lazy_static! {
     static ref ONLINE_USERS: Mutex<UserSession> = Mutex::new(UserSession::new());
 }
-// //存储验证码所用的 HashMap
-// lazy_static! {
-//     static ref VERIFICATION_CODES: Mutex<HashMap<String, String>> = Mutex::new(HashMap::new());
-// }
+
+
+//impl Responder代表任何可以转换为 HttpResponse 的类型
+pub async fn generate_img_url(img:Vec::<u8>)->impl Responder{
+    HttpResponse::Ok()
+        .header(header::CONTENT_TYPE, "image/jpeg")
+        .body(img)
+}
+
 
 pub async fn register(pool: web::Data<r2d2::Pool<ConnectionManager<MysqlConnection>>>,new_user: web::Json<UserCreate>,) -> Result<HttpResponse, EveryError> {
     let user_create = new_user.into_inner();
@@ -74,16 +83,15 @@ pub async fn login(
         }
     }
     
-    
     // 创建一个新的会话，将用户的 UUID 作为会话数据插入到会话中
     let cookie = Cookie::build("uuid", user_uuid.clone())
-        .path("/")
-        .secure(false)
-        .http_only(true)
+        .path("/")  // 适用于整个网站
+        .secure(false)// 如果使用 HTTPS，请设置为 true
+        .http_only(true)// 确保 Cookie 不能被 JavaScript 访问
         .finish();
-    
-    
 
+
+    // 返回一个包含用户信息的 JSON 响应，同时设置一个名为 uuid 的 Cookie
     Ok(HttpResponse::Ok()
         .cookie(cookie)
         .json(Response{status:200,data:match_user})
@@ -131,7 +139,7 @@ pub async fn logout(req:HttpRequest) -> HttpResponse {
             HttpResponse::Ok().body("login out")
 
         }
-        None => {
+        none => {
             HttpResponse::Ok().body("没有登录")
         }
     }
@@ -149,4 +157,11 @@ pub async fn get_online_users() -> HttpResponse {
 }
 pub async fn update_user(pool: web::Data<r2d2::Pool<ConnectionManager<MysqlConnection>>>,new_user: web::Json<UserCreate>) {
     
+}
+
+pub async fn get_user_profile(pool: web::Data<r2d2::Pool<ConnectionManager<MysqlConnection>>>,user_uuid: web::Query<String>)->Result<HttpResponse,EveryError>{
+    let user_uuid = user_uuid.into_inner();
+    let mut conn = pool.get().map_err(|e|EveryError::DatabaseError(e.to_string()))?;
+    let user_profile = get_user_profile_sql(&mut conn,user_uuid).await?;
+    Ok(HttpResponse::Ok().json(Response{status:200,data:user_profile}))
 }

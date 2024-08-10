@@ -31,9 +31,10 @@ pub struct UserDetail{
 #[diesel(table_name = users_table)]
 pub struct UserCreate{
     pub username: String,
-    pub password: String,
     #[serde(deserialize_with="crate::utils::deserialize_email")]
     pub email: String,
+    pub password: String,
+
 }
 #[derive(Insertable)]
 #[diesel(table_name = users_table)]
@@ -47,22 +48,12 @@ pub struct UserCreateAll {
 #[derive(Debug,Clone,Deserialize)]
 pub struct UserLogin{
     pub username: Option<String>,
-    pub password: Option<String>,
     pub email: Option<String>,
-    pub code: Option<String>
+    pub password: Option<String>,
+
 }
 use regex::Regex;
-impl UserLogin{
-    pub fn all_fields_present(&self)->bool{
-        self.username.is_some() && self.password.is_some() && self.email.is_some()
-    }
-    pub fn is_valid_email(&self)->bool{
-        let email_regex = Regex::new(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$").unwrap();
-        email_regex.is_match(self.email.as_ref().unwrap())
 
-    }
-    
-}
 #[derive(Insertable)]
 #[diesel(table_name = user_roles_table_correlation)]
 pub struct UserRolesCorrelationCreate{

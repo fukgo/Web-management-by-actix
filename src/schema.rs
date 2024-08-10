@@ -1,11 +1,5 @@
 // @generated automatically by Diesel CLI.
 
-pub mod sql_types {
-    #[derive(diesel::query_builder::QueryId, Clone, diesel::sql_types::SqlType)]
-    #[diesel(mysql_type(name = "Enum"))]
-    pub struct UserProfileTableGenderEnum;
-}
-
 diesel::table! {
     order_detail_table (id) {
         id -> Integer,
@@ -114,9 +108,6 @@ diesel::table! {
 }
 
 diesel::table! {
-    use diesel::sql_types::*;
-    use super::sql_types::UserProfileTableGenderEnum;
-
     user_profile_table (user_uuid) {
         #[max_length = 36]
         user_uuid -> Varchar,
@@ -126,8 +117,8 @@ diesel::table! {
         bio -> Nullable<Varchar>,
         #[max_length = 255]
         avatar_url -> Nullable<Varchar>,
-        #[max_length = 6]
-        gender -> UserProfileTableGenderEnum,
+        #[max_length = 10]
+        gender -> Nullable<Varchar>,
         age -> Nullable<Integer>,
     }
 }

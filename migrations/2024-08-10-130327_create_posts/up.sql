@@ -1,3 +1,4 @@
+-- Your SQL goes here
 
 -- 用户管理
 create table user_status_table (
@@ -65,11 +66,9 @@ create table user_profile_table(
 
   avatar_url varchar(255),
 
-  gender enum('male','female') not null,
+  gender varchar(10),
 
   age int,
-
-  check (age>=18 and age <= 80),
 
   foreign key (user_uuid) references users_table(uuid)
 
